@@ -86,7 +86,7 @@ def add_basket(basket: Dict[str, Any]) -> None:
     if any(b["id"] == basket["id"] for b in data["Baskets"]):
         raise ValueError(f"A kosár már lézetik ezzel az azonosítóval: {basket['id']}")
 
-    if all(user["user_id"] != basket["user_id"] for user in data["Users"]):
+    if all(user["id"] != basket["user_id"] for user in data["Users"]):
         raise ValueError(f"A felhasználó nem található ezzel az azonosítóval: {basket["user_id"]}")
 
     if any(b["user_id"] == basket["user_id"] for b in data["Baskets"]):
