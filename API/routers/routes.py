@@ -1,9 +1,8 @@
-from fastapi_kiindulo.API.routers.data.filereader import get_next_basket_id
-from schemas.schema import User, Basket, Item
+from .schemas.schema import User, Basket, Item
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException, APIRouter
-from data.filehandler import add_user, add_basket, add_item_to_basket, save_json
-from data.filereader import get_user_by_id, get_basket_by_user_id, get_all_users, get_total_price_of_basket, load_json
+from .data.filehandler import add_user, add_basket, add_item_to_basket, save_json
+from .data.filereader import get_user_by_id, get_basket_by_user_id, get_all_users, get_total_price_of_basket, load_json, get_next_basket_id
 from typing import List
 
 '''
@@ -24,7 +23,7 @@ routers = APIRouter()
 
 
 @routers.post('/adduser', response_model=User)
-def adduser(user: User):
+def adduser(user: User) -> JSONResponse:
     try:
         user_dict = user.model_dump()
         add_user(user_dict)
@@ -34,7 +33,7 @@ def adduser(user: User):
 
 
 @routers.post('/addshoppingbag', response_model=str)
-def addshoppingbag(userid: int):
+def addshoppingbag(userid: int) -> JSONResponse:
     try:
         new_basket = Basket(id=get_next_basket_id(), user_id=userid, items=[])
         add_basket(new_basket.model_dump())
@@ -44,7 +43,7 @@ def addshoppingbag(userid: int):
 
 
 @routers.post('/additem', response_model=Basket)
-def additem(userid: int, item: Item):
+def additem(userid: int, item: Item) -> JSONResponse:
     try:
         item_dict = item.model_dump()
         add_item_to_basket(userid, item_dict)
@@ -54,38 +53,36 @@ def additem(userid: int, item: Item):
 
 
 @routers.put('/updateitem', response_model=Basket)
-def updateitem(userid: int, itemid: int, update_item: Item):
+def updateitem(userid: int, itemid: int, update_item: Item) -> JSONResponse:
     try:
         data = load_json()
         basket = get_basket_by_user_id(userid)
-        basket["items"][str(itemid)] = update_item.model_dump()
-        for i in range(len(data["Baskets"])):
-            if data["Baskets"][i] == basket["id"]:
-                data["Baskets"][i] = basket
-                break
+
+        if not any(item["item_id"] == itemid for item in basket["items"]):
+            raise ValueError(f"A termék nem található ezzel az azonosítóval: {itemid}")
+
+        basket["items"] = [update_item.model_dump() if item["item_id"] == itemid else item for item in basket["items"]]
+        data["Baskets"] = [basket if b["id"] == basket["id"] else b for b in data["Baskets"]]
 
         save_json(data)
-        return JSONResponse(status_code=201, content=get_basket_by_user_id(userid))
+        return JSONResponse(status_code=200, content=get_basket_by_user_id(userid))
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 
 @routers.delete('/deleteitem', response_model=Basket)
-def deleteitem(userid: int, itemid: int):
+def deleteitem(userid: int, itemid: int) -> JSONResponse:
     try:
         data = load_json()
         basket = get_basket_by_user_id(userid)
         old_length = len(basket["items"])
-        new_list = [item for item in basket["items"] if item["item_id"] == itemid]
+        new_list = [item for item in basket["items"] if item["item_id"] != itemid]
 
         if len(new_list) == old_length:
-            raise HTTPException(status_code=404, detail="Item not found.")
+            raise ValueError("Item not found.")
 
         basket["items"] = new_list
-        for i in range(len(data["Baskets"])):
-            if data["Baskets"][i] == basket["id"]:
-                data["Baskets"][i] = basket
-                break
+        data["Baskets"] = [basket if b["id"] == basket["id"] else b for b in data["Baskets"]]
 
         save_json(data)
         return JSONResponse(status_code=201, content=get_basket_by_user_id(userid))
@@ -94,7 +91,7 @@ def deleteitem(userid: int, itemid: int):
 
 
 @routers.get('/user', response_model=User)
-def user(userid: int):
+def user(userid: int) -> JSONResponse:
     try:
         user = get_user_by_id(userid)
         return JSONResponse(status_code=200, content=user)
@@ -103,7 +100,7 @@ def user(userid: int):
 
 
 @routers.get('/users', response_model=List[User])
-def users():
+def users() -> JSONResponse:
     try:
         users = get_all_users()
         return JSONResponse(status_code=200, content=users)
@@ -112,7 +109,7 @@ def users():
 
 
 @routers.get('/shoppingbag', response_model=List[Item])
-def shoppingbag(userid: int):
+def shoppingbag(userid: int) -> JSONResponse:
     try:
         basket = get_basket_by_user_id(userid)
         return JSONResponse(status_code=200, content=basket["items"])
@@ -121,7 +118,7 @@ def shoppingbag(userid: int):
 
 
 @routers.get('/getusertotal', response_model=float)
-def getusertotal(userid: int):
+def getusertotal(userid: int) -> JSONResponse:
     try:
         total = get_total_price_of_basket(userid)
         return JSONResponse(status_code=200, content=total)
@@ -130,7 +127,7 @@ def getusertotal(userid: int):
 
 
 @routers.post('/save', response_model=str)
-def save(source: str, dest: str):
+def save(source: str, dest: str) -> JSONResponse:
     try:
         data = load_json(source)
         save_json(data, dest)
@@ -140,7 +137,7 @@ def save(source: str, dest: str):
 
 
 @routers.post('/reload', response_model=str)
-def reload(dest: str, source: str):
+def reload(dest: str, source: str) -> JSONResponse:
     try:
         data = load_json(source)
         save_json(data, dest)

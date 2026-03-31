@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from fastapi_kiindulo.API.routers.schemas.schema import ShopName
+from routers.schemas.schema import ShopName
 from routers.routes import routers as routes_router
 
 '''
