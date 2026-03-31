@@ -85,7 +85,7 @@ def deleteitem(userid: int, itemid: int) -> JSONResponse:
         data["Baskets"] = [basket if b["id"] == basket["id"] else b for b in data["Baskets"]]
 
         save_json(data)
-        return JSONResponse(status_code=201, content=get_basket_by_user_id(userid))
+        return JSONResponse(status_code=200, content=get_basket_by_user_id(userid))
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
